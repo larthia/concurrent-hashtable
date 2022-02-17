@@ -46,6 +46,7 @@ module Data.HashTable(
         add,
         update,
         modify,
+        alter,
         delete,
         swapValues,
         -- * Utilities

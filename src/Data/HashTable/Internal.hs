@@ -290,6 +290,34 @@ modify htable k f =
                         return $ Just v
 
 
+-- | A variant of modify that applies an update-function to the value for key `k`. Returns the old value if
+-- it exists. If `k` is not in the hash table, it returns `Nothing`. The update function is passed `Just` value if
+-- the key exists, or `Nothing` if the key does not exist. It returns either `Just` the new value or Nothing if the key is to be deleted.
+alter :: (Eq k)
+       => HashTable k v
+       -> k                        -- ^ key `k`
+       -> (Maybe v -> Maybe v)     -- ^ update-function
+       -> IO (Maybe v)             -- ^ returns the old value for key `k` if it existed
+alter htable k f =
+    genericModify htable k $ \tvar -> do
+                list <- readTVar tvar
+                case L.lookup k list of
+                    Nothing -> do
+                        case f Nothing of
+                            Nothing -> return Nothing
+                            Just v  -> do
+                                writeTVar tvar ((k,v):list)
+                                return Nothing
+                        return Nothing
+                    old@(Just v) -> do -- entry was already there, so we overwrite or delete it
+                        case f old of
+                            Nothing -> do
+                                writeTVar tvar (deleteFirstKey k list)
+                                return old
+                            Just v' -> do
+                                writeTVar tvar ((k,v'):deleteFirstKey k list)
+                                return old
+
 -- | Atomically replaces the value for the given key `k` in the hash table with
 -- the new value. Returns the old value. Throws 'AssertionFailed' if `k` is not in
 -- the hash table.
